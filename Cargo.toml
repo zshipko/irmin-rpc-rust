@@ -1,0 +1,20 @@
+[package]
+name = "irmin"
+version = "0.1.0"
+authors = ["Zach Shipko <zachshipko@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+capnpc = "*"
+
+[dependencies]
+thiserror = "1"
+capnp = "*"
+futures = "0.3.0"
+tokio = { version = "1.0.0", features = ["net", "rt", "macros"]}
+tokio-util = { version = "0.6.0", features = ["compat"] }
+
+[dependencies.capnp-rpc]
+version = "*"
