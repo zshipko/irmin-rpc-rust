@@ -17,6 +17,8 @@ pub type Repo = irmin_api_capnp::repo::Client;
 pub type Store = irmin_api_capnp::store::Client;
 pub type Commit = irmin_api_capnp::commit::Client;
 
+type Contents = Vec<u8>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("I/O error {0}")]
@@ -74,10 +76,33 @@ impl Repo {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+impl Store {
+    pub async fn find(&self, key: impl AsRef<str>) -> Result<Option<Contents>, Error> {
+        let mut req = self.find_request();
+        req.get().set_key(key.as_ref());
+        let x = req.send().promise.await?;
+        let r = x.get()?;
+        if !r.has_contents() {
+            return Ok(None);
+        }
+        let contents = x.get()?.get_contents()?;
+        Ok(Some(contents.to_vec()))
+    }
+
+    pub async fn mem_tree(&self, key: impl AsRef<str>) -> Result<bool, Error> {
+        let mut req = self.mem_tree_request();
+        req.get().set_key(key.as_ref());
+        let exists = req.send().promise.await?.get()?.get_exists();
+        Ok(exists)
+    }
+
+    pub async fn mem(&self, key: impl AsRef<str>) -> Result<bool, Error> {
+        let mut req = self.mem_request();
+        req.get().set_key(key.as_ref());
+        let exists = req.send().promise.await?.get()?.get_exists();
+        Ok(exists)
     }
 }
+
+#[cfg(test)]
+mod tests {}
