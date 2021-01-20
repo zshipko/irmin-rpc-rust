@@ -17,7 +17,25 @@ pub type Repo = irmin_api_capnp::repo::Client;
 pub type Store = irmin_api_capnp::store::Client;
 pub type Commit = irmin_api_capnp::commit::Client;
 
-type Contents = Vec<u8>;
+pub type Contents = Vec<u8>;
+
+pub struct Info {
+    author: String,
+    message: String,
+    timestamp: i64,
+}
+
+impl Info {
+    pub fn new(author: impl Into<String>, message: impl Into<String>) -> Result<Info, Error> {
+        Ok(Info {
+            author: author.into(),
+            message: message.into(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_secs() as i64,
+        })
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -26,6 +44,9 @@ pub enum Error {
 
     #[error("Capnp error {0}")]
     Capnp(#[from] capnp::Error),
+
+    #[error("System time error {0}")]
+    SystemTime(#[from] std::time::SystemTimeError),
 }
 
 impl Client {
@@ -101,6 +122,24 @@ impl Store {
         req.get().set_key(key.as_ref());
         let exists = req.send().promise.await?.get()?.get_exists();
         Ok(exists)
+    }
+
+    pub async fn set(
+        &self,
+        key: impl AsRef<str>,
+        value: impl AsRef<[u8]>,
+        info: &Info,
+    ) -> Result<(), Error> {
+        let mut req = self.set_request();
+        let mut r = req.get();
+        r.set_key(key.as_ref());
+        r.set_contents(value.as_ref());
+        let mut i = r.init_info();
+        i.set_author(&info.author);
+        i.set_message(&info.message);
+        i.set_date(info.timestamp);
+        let _ = req.send().promise.await?.get()?;
+        Ok(())
     }
 }
 
