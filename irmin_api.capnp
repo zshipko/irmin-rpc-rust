@@ -5,23 +5,38 @@ using Contents = Data;
 using Endpoint = Data;
 using Key = Text;
 
-struct Node {
-  step  @0  :Text;
-  tree  @1  :Tree;
-}
-
-struct Tree {
-  key @0 :Key;
-  union {
-    contents @1 :Contents;
-    node @2 :List(Node);
-  }
-}
-
+# Irmin.Info.t
 struct Info {
   author   @0  :Text;
   message  @1  :Text;
   date     @2  :Int64;
+}
+
+
+# Store.Tree
+interface Tree {
+  struct Node {
+    step  @0  :Text;
+    tree  @1  :Concrete;
+  }
+
+  struct Concrete {
+    key @0 :Key;
+    union {
+      contents @1 :Hash;
+      node @2 :List(Node);
+    }
+  }
+
+  find @0 (key :Key) -> (contents :Contents);
+  getTree @1 (key :Key) -> (tree :Tree);
+  add @2 (key :Key, contents :Contents) -> (tree :Tree);
+  addTree @3 (key :Key, tree :Tree) -> (tree :Tree);
+  mem @4 (key :Key) -> (exists :Bool);
+  memTree @5 (key :Key) -> (exists :Bool);
+  getConcrete @6 () -> (concrete :Concrete);
+  hash @7 () -> (hash :Hash);
+  findHash @8 (key :Key) -> (hash :Hash);
 }
 
 interface Commit {
@@ -29,7 +44,7 @@ interface Commit {
     hash     @0  :Hash;
     info     @1  :Info;
     parents  @2  :List(Hash);
-    tree     @3  :Tree;
+    tree     @3  :Tree.Concrete;
   }
 
   read     @0  () -> (value :Value);
@@ -70,7 +85,7 @@ interface Pack {
 
 interface Store {
   find      @0  (key :Key) -> (contents :Contents);
-  findTree  @1  (key :Key) -> (tree :Tree);
+  getTree  @1  (key :Key) -> (tree :Tree);
   set       @2  (key :Key, info :Info, contents :Contents) -> ();
   setTree   @3  (key :Key, info :Info, tree :Tree) -> ();
   remove    @4  (key :Key, info :Info) -> ();
@@ -90,6 +105,8 @@ interface Store {
   sync  @8  () -> (sync :Sync);
   pack @9 () -> (pack :Pack);
   lastModified  @10 (key :Key) -> (commit :Commit);
+  findHash @11 (key :Key) -> (hash :Hash);
+  contentsOfHash @12  (hash :Hash) -> (contents :Contents);
 }
 
 interface Repo {
@@ -100,7 +117,9 @@ interface Repo {
   branchRemove  @3  (branch :Text) -> ();
   branchSet     @4  (branch :Text, commit :Commit) -> ();
 
-  commitOfHash  @5  (hash :Hash) -> (commit :Commit);
+  commitOfHash   @5  (hash :Hash) -> (commit :Commit);
+  contentsOfHash @6  (hash :Hash) -> (contents :Contents);
+  emptyTree @7 () -> (tree :Tree);
 }
 
 # The top-level interface of an RPC server
