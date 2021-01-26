@@ -1,26 +1,13 @@
 use crate::*;
 
-pub type Store = irmin_api_capnp::store::Client;
-
-pub struct Info {
-    author: String,
-    message: String,
-    timestamp: i64,
+pub enum ConcreteTree {
+    Contents(Hash),
+    Node(String, Box<ConcreteTree>),
 }
 
-impl Info {
-    pub fn new(author: impl Into<String>, message: impl Into<String>) -> Result<Info, Error> {
-        Ok(Info {
-            author: author.into(),
-            message: message.into(),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_secs() as i64,
-        })
-    }
-}
+pub type Tree = irmin_api_capnp::tree::Client;
 
-impl Store {
+impl Tree {
     pub async fn find(&self, key: impl AsRef<str>) -> Result<Option<Contents>, Error> {
         let mut req = self.find_request();
         req.get().set_key(key.as_ref());
@@ -47,38 +34,20 @@ impl Store {
         Ok(exists)
     }
 
-    pub async fn set(
-        &self,
-        key: impl AsRef<str>,
-        value: impl AsRef<[u8]>,
-        info: &Info,
-    ) -> Result<(), Error> {
-        let mut req = self.set_request();
+    pub async fn add(&self, key: impl AsRef<str>, value: impl AsRef<[u8]>) -> Result<(), Error> {
+        let mut req = self.add_request();
         let mut r = req.get();
         r.set_key(key.as_ref());
         r.set_contents(value.as_ref());
-        let mut i = r.init_info();
-        i.set_author(&info.author);
-        i.set_message(&info.message);
-        i.set_date(info.timestamp);
         let _ = req.send().promise.await?.get()?;
         Ok(())
     }
 
-    pub async fn set_tree(
-        &self,
-        key: impl AsRef<str>,
-        tree: &Tree,
-        info: &Info,
-    ) -> Result<(), Error> {
-        let mut req = self.set_tree_request();
+    pub async fn set_tree(&self, key: impl AsRef<str>, tree: &Tree) -> Result<(), Error> {
+        let mut req = self.add_tree_request();
         let mut r = req.get();
         r.set_key(key.as_ref());
         r.set_tree(tree.clone());
-        let mut i = r.init_info();
-        i.set_author(&info.author);
-        i.set_message(&info.message);
-        i.set_date(info.timestamp);
         let _ = req.send().promise.await?.get()?;
         Ok(())
     }
