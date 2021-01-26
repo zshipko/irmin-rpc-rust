@@ -37,6 +37,7 @@ interface Tree {
   getConcrete @6 () -> (concrete :Concrete);
   hash @7 () -> (hash :Hash);
   findHash @8 (key :Key) -> (hash :Hash);
+  remove   @9  (key :Key) -> (tree :Tree);
 }
 
 interface Commit {

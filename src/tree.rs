@@ -62,4 +62,24 @@ impl Tree {
             Err(e) => Err(e.into()),
         }
     }
+
+    pub async fn find_hash(&self, key: impl AsRef<str>) -> Result<Option<Hash>, Error> {
+        let mut req = self.find_hash_request();
+        req.get().set_key(key.as_ref());
+        let x = req.send().promise.await?;
+        let r = x.get()?;
+        if !r.has_hash() {
+            return Ok(None);
+        }
+        let contents = x.get()?.get_hash()?;
+        Ok(Some(contents.to_vec()))
+    }
+
+    pub async fn remove(&self, key: impl AsRef<str>) -> Result<(), Error> {
+        let mut req = self.remove_request();
+        let mut r = req.get();
+        r.set_key(key.as_ref());
+        let _ = req.send().promise.await?.get()?;
+        Ok(())
+    }
 }
