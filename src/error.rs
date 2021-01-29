@@ -8,4 +8,7 @@ pub enum Error {
 
     #[error("System time error {0}")]
     SystemTime(#[from] std::time::SystemTimeError),
+
+    #[error("JSON error {0}")]
+    Json(#[from] serde_json::Error),
 }
