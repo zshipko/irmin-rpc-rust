@@ -1,5 +1,5 @@
 use futures::AsyncReadExt;
-use futures::FutureExt;
+//use futures::FutureExt;
 
 use crate::*;
 
@@ -8,7 +8,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn new<A: tokio::net::ToSocketAddrs>(addr: A) -> Result<Client, std::io::Error> {
+    pub async fn new<A: tokio::net::ToSocketAddrs>(
+        addr: A,
+    ) -> Result<(Client, tokio::task::LocalSet), Error> {
         let stream = tokio::net::TcpStream::connect(addr).await?;
         stream.set_nodelay(true)?;
 
@@ -16,20 +18,21 @@ impl Client {
         let rpc_network = Box::new(capnp_rpc::twoparty::VatNetwork::new(
             reader,
             writer,
-            capnp_rpc::rpc_twoparty_capnp::Side::Client,
+            capnp_rpc::twoparty::VatId::Client,
             Default::default(),
         ));
         let mut rpc = capnp_rpc::RpcSystem::new(rpc_network, None);
-        let irmin: irmin::Client = rpc.bootstrap(capnp_rpc::rpc_twoparty_capnp::Side::Server);
+        let irmin: irmin::Client = rpc.bootstrap(capnp_rpc::twoparty::VatId::Server);
 
-        tokio::task::spawn_local(Box::pin(rpc.map(|_| ())));
+        let local = tokio::task::LocalSet::new();
+        local.spawn_local(Box::pin(rpc));
 
-        Ok(Client { irmin })
+        Ok((Client { irmin }, local))
     }
 
     pub async fn repo(&self) -> Result<Repo, Error> {
         let req = self.irmin.repo_request();
-        let repo = req.send().promise.await?.get()?.get_repo()?;
+        let repo = req.send().pipeline.get_repo();
         Ok(repo)
     }
 
@@ -39,4 +42,3 @@ impl Client {
         Ok(())
     }
 }
-

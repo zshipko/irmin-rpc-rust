@@ -13,7 +13,7 @@ capnpc = "*"
 thiserror = "1"
 capnp = "*"
 futures = "0.3.0"
-tokio = { version = "1.0.0", features = ["net", "rt", "macros"]}
+tokio = { version = "1.0.0", features = ["net", "rt-multi-thread", "macros"]}
 tokio-util = { version = "0.6.0", features = ["compat"] }
 serde = "1"
 serde_json = "1"
