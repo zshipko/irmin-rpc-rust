@@ -3,18 +3,9 @@ use crate::*;
 pub type Store = irmin_api_capnp::store::Client;
 
 pub struct Info {
-    author: String,
-    message: String,
-    timestamp: i64,
-}
-
-pub trait Lazy<Output> {
-    type Context;
-
-    fn fetch(
-        &'static self,
-        ctx: &'static Self::Context,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Output, Error>>>>;
+    pub author: String,
+    pub message: String,
+    pub timestamp: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
@@ -24,22 +15,15 @@ impl ContentsHash {
     pub fn new(x: Hash) -> ContentsHash {
         ContentsHash(x)
     }
+
+    pub async fn fetch(&self, repo: &Repo) -> Result<Contents, Error> {
+        repo.contents_of_hash(&self.0).await.map(|x| x.unwrap())
+    }
 }
 
 impl From<ContentsHash> for Hash {
     fn from(x: ContentsHash) -> Hash {
         x.0
-    }
-}
-
-impl Lazy<Contents> for ContentsHash {
-    type Context = Repo;
-
-    fn fetch(
-        &'static self,
-        ctx: &'static Self::Context,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Contents, Error>>>> {
-        Box::pin(async move { ctx.contents_of_hash(&self.0).await.map(|x| x.unwrap()) })
     }
 }
 

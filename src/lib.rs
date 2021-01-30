@@ -4,20 +4,20 @@ pub(crate) mod irmin_api_capnp {
 }
 
 mod client;
+mod commit;
 mod error;
-pub mod repo;
+mod repo;
 mod store;
 mod tree;
 
 pub(crate) use irmin_api_capnp::irmin;
 
 pub use client::Client;
+pub use commit::Commit;
 pub use error::Error;
 pub use repo::Repo;
-pub use store::{ContentsHash, Info, Lazy, Store};
+pub use store::{ContentsHash, Info, Store};
 pub use tree::{ConcreteTree, Tree};
-
-pub type Commit = irmin_api_capnp::commit::Client;
 
 pub type Contents = Vec<u8>;
 

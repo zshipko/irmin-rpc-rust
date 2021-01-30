@@ -34,22 +34,20 @@ impl Tree {
         Ok(exists)
     }
 
-    pub async fn add(&self, key: impl AsRef<str>, value: impl AsRef<[u8]>) -> Result<(), Error> {
+    pub fn add(&self, key: impl AsRef<str>, value: impl AsRef<[u8]>) -> Tree {
         let mut req = self.add_request();
         let mut r = req.get();
         r.set_key(key.as_ref());
         r.set_contents(value.as_ref());
-        let _ = req.send().promise.await?.get()?;
-        Ok(())
+        req.send().pipeline.get_tree()
     }
 
-    pub async fn set_tree(&self, key: impl AsRef<str>, tree: &Tree) -> Result<(), Error> {
+    pub fn set_tree(&self, key: impl AsRef<str>, tree: &Tree) -> Tree {
         let mut req = self.add_tree_request();
         let mut r = req.get();
         r.set_key(key.as_ref());
         r.set_tree(tree.clone());
-        let _ = req.send().promise.await?.get()?;
-        Ok(())
+        req.send().pipeline.get_tree()
     }
 
     pub async fn find_tree(&self, key: impl AsRef<str>) -> Result<Option<Tree>, Error> {
@@ -63,11 +61,10 @@ impl Tree {
         }
     }
 
-    pub async fn remove(&self, key: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn remove(&self, key: impl AsRef<str>) -> Tree {
         let mut req = self.remove_request();
         let mut r = req.get();
         r.set_key(key.as_ref());
-        let _ = req.send().promise.await?.get()?;
-        Ok(())
+        req.send().pipeline.get_tree()
     }
 }

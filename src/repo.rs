@@ -1,8 +1,8 @@
 use crate::*;
 
 pub struct Repo {
-    client: irmin_api_capnp::repo::Client,
-    contents_cache: std::cell::RefCell<lru::LruCache<Hash, Contents>>,
+    pub client: irmin_api_capnp::repo::Client,
+    pub contents_cache: std::cell::RefCell<lru::LruCache<Hash, Contents>>,
 }
 
 impl Repo {
@@ -56,5 +56,33 @@ impl Repo {
         let req = self.client.empty_tree_request();
         let tmp = req.send().pipeline;
         tmp.get_tree()
+    }
+
+    pub async fn set_branch(&self, branch: impl AsRef<str>, commit: &Commit) -> Result<(), Error> {
+        let mut req = self.client.branch_set_request();
+        let mut p = req.get();
+        p.set_branch(branch.as_ref());
+        p.set_commit(commit.clone());
+        let _ = req.send().promise.await?.get()?;
+        Ok(())
+    }
+
+    pub async fn remove_branch(&self, branch: impl AsRef<str>) -> Result<(), Error> {
+        let mut req = self.client.branch_remove_request();
+        let mut p = req.get();
+        p.set_branch(branch.as_ref());
+        let _ = req.send().promise.await?.get()?;
+        Ok(())
+    }
+
+    pub async fn branches(&self) -> Result<Vec<String>, Error> {
+        let req = self.client.branch_list_request();
+        let branches = req.send().promise.await?;
+        let branches = branches.get()?.get_branches()?;
+        let branches = branches.iter().filter_map(|x| match x {
+            Ok(x) => Some(x.to_string()),
+            Err(_) => None,
+        });
+        Ok(branches.collect())
     }
 }
