@@ -7,6 +7,7 @@ mod client;
 mod commit;
 mod error;
 mod repo;
+mod repr;
 mod store;
 mod tree;
 
