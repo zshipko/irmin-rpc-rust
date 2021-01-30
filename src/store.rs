@@ -8,6 +8,41 @@ pub struct Info {
     timestamp: i64,
 }
 
+pub trait Lazy<Output> {
+    type Context;
+
+    fn fetch(
+        &'static self,
+        ctx: &'static Self::Context,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Output, Error>>>>;
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub struct ContentsHash(Hash);
+
+impl ContentsHash {
+    pub fn new(x: Hash) -> ContentsHash {
+        ContentsHash(x)
+    }
+}
+
+impl From<ContentsHash> for Hash {
+    fn from(x: ContentsHash) -> Hash {
+        x.0
+    }
+}
+
+impl Lazy<Contents> for ContentsHash {
+    type Context = Repo;
+
+    fn fetch(
+        &'static self,
+        ctx: &'static Self::Context,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Contents, Error>>>> {
+        Box::pin(async move { ctx.contents_of_hash(&self.0).await.map(|x| x.unwrap()) })
+    }
+}
+
 impl Info {
     pub fn new(author: impl Into<String>, message: impl Into<String>) -> Result<Info, Error> {
         Ok(Info {
@@ -21,19 +56,7 @@ impl Info {
 }
 
 impl Store {
-    pub async fn find(&self, key: impl AsRef<str>) -> Result<Option<Contents>, Error> {
-        let mut req = self.find_request();
-        req.get().set_key(key.as_ref());
-        let x = req.send().promise.await?;
-        let r = x.get()?;
-        if !r.has_contents() {
-            return Ok(None);
-        }
-        let contents = x.get()?.get_contents()?;
-        Ok(Some(contents.to_vec()))
-    }
-
-    pub async fn find_hash(&self, key: impl AsRef<str>) -> Result<Option<Hash>, Error> {
+    pub async fn find(&self, key: impl AsRef<str>) -> Result<Option<ContentsHash>, Error> {
         let mut req = self.find_hash_request();
         req.get().set_key(key.as_ref());
         let x = req.send().promise.await?;
@@ -41,8 +64,8 @@ impl Store {
         if !r.has_hash() {
             return Ok(None);
         }
-        let contents = x.get()?.get_hash()?;
-        Ok(Some(contents.to_vec()))
+        let hash = x.get()?.get_hash()?;
+        Ok(Some(ContentsHash(hash.to_vec())))
     }
 
     pub async fn mem_tree(&self, key: impl AsRef<str>) -> Result<bool, Error> {

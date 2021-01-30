@@ -33,7 +33,7 @@ impl Client {
     pub async fn repo(&self) -> Result<Repo, Error> {
         let req = self.irmin.repo_request();
         let repo = req.send().pipeline.get_repo();
-        Ok(repo)
+        Ok(Repo::new(repo))
     }
 
     pub async fn ping(&self) -> Result<(), Error> {

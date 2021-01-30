@@ -1,37 +1,60 @@
 use crate::*;
 
-pub type Repo = irmin_api_capnp::repo::Client;
+pub struct Repo {
+    client: irmin_api_capnp::repo::Client,
+    contents_cache: std::cell::RefCell<lru::LruCache<Hash, Contents>>,
+}
 
 impl Repo {
+    pub(crate) fn new(client: irmin_api_capnp::repo::Client) -> Self {
+        Repo {
+            client,
+            contents_cache: std::cell::RefCell::new(lru::LruCache::new(32)),
+        }
+    }
+
     pub async fn master(&self) -> Result<Store, Error> {
-        let req = self.master_request();
+        let req = self.client.master_request();
         let store = req.send().pipeline.get_store();
         Ok(store)
     }
 
     pub async fn branch(&self, name: impl AsRef<str>) -> Result<Store, Error> {
-        let mut req = self.of_branch_request();
+        let mut req = self.client.of_branch_request();
         req.get().set_branch(name.as_ref());
         let store = req.send().pipeline.get_store();
         Ok(store)
     }
 
     pub async fn contents_of_hash(&self, hash: &Hash) -> Result<Option<Contents>, Error> {
-        let mut req = self.contents_of_hash_request();
+        if let Some(x) = self.contents_cache.borrow_mut().get(hash) {
+            return Ok(Some(x.clone()));
+        }
+
+        let mut req = self.client.contents_of_hash_request();
         req.get().set_hash(hash);
         let tmp = req.send().promise.await?;
         if !tmp.get()?.has_contents() {
             return Ok(None);
         }
         let contents = tmp.get()?.get_contents()?;
-        Ok(Some(contents.to_vec()))
+        let c = contents.to_vec();
+        self.contents_cache
+            .borrow_mut()
+            .put(hash.clone(), c.clone());
+        Ok(Some(c))
     }
 
-    pub async fn commit_of_hash(&self, hash: &Hash) -> Result<Option<Commit>, Error> {
-        let mut req = self.commit_of_hash_request();
+    pub fn commit_of_hash(&self, hash: &Hash) -> Commit {
+        let mut req = self.client.commit_of_hash_request();
         req.get().set_hash(hash);
-        let tmp = req.send().promise.await?;
-        let commit = tmp.get()?.get_commit()?;
-        Ok(Some(commit))
+        let tmp = req.send().pipeline;
+        tmp.get_commit()
+    }
+
+    pub fn empty_tree(&self) -> Tree {
+        let req = self.client.empty_tree_request();
+        let tmp = req.send().pipeline;
+        tmp.get_tree()
     }
 }

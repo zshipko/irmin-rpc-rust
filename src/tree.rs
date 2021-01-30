@@ -8,16 +8,16 @@ pub enum ConcreteTree {
 pub type Tree = irmin_api_capnp::tree::Client;
 
 impl Tree {
-    pub async fn find(&self, key: impl AsRef<str>) -> Result<Option<Contents>, Error> {
-        let mut req = self.find_request();
+    pub async fn find(&self, key: impl AsRef<str>) -> Result<Option<ContentsHash>, Error> {
+        let mut req = self.find_hash_request();
         req.get().set_key(key.as_ref());
         let x = req.send().promise.await?;
         let r = x.get()?;
-        if !r.has_contents() {
+        if !r.has_hash() {
             return Ok(None);
         }
-        let contents = x.get()?.get_contents()?;
-        Ok(Some(contents.to_vec()))
+        let hash = x.get()?.get_hash()?;
+        Ok(Some(ContentsHash::new(hash.to_vec())))
     }
 
     pub async fn mem_tree(&self, key: impl AsRef<str>) -> Result<bool, Error> {
@@ -61,18 +61,6 @@ impl Tree {
             Ok(x) => Ok(Some(x)),
             Err(e) => Err(e.into()),
         }
-    }
-
-    pub async fn find_hash(&self, key: impl AsRef<str>) -> Result<Option<Hash>, Error> {
-        let mut req = self.find_hash_request();
-        req.get().set_key(key.as_ref());
-        let x = req.send().promise.await?;
-        let r = x.get()?;
-        if !r.has_hash() {
-            return Ok(None);
-        }
-        let contents = x.get()?.get_hash()?;
-        Ok(Some(contents.to_vec()))
     }
 
     pub async fn remove(&self, key: impl AsRef<str>) -> Result<(), Error> {
